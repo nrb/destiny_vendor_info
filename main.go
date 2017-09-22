@@ -2,6 +2,7 @@ package main
 
 import "encoding/json"
 import "fmt"
+import "io/ioutil"
 import "net/http"
 import "os"
 import "time"
@@ -41,12 +42,21 @@ func NewBungieClient(apiKey string) *BungieClient {
 	}
 }
 
-func (b *BungieClient) Get(url string) (*http.Response, error) {
+func (b *BungieClient) NewRequest(method string, url string) *http.Request {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Printf("%v", err)
 	}
 	req.Header.Set("X-API-Key", b.APIKey)
+	return req
+}
+
+func (b *BungieClient) Do(req *http.Request) (*http.Response, error) {
+	return b.Client.Do(req)
+}
+
+func (b *BungieClient) Get(url string) (*http.Response, error) {
+	req := b.NewRequest("GET", url)
 	return b.Client.Do(req)
 }
 
@@ -76,8 +86,16 @@ func GetProfile(client *BungieClient, membershipType int, memberId string) {
 	profile_path := "%d/Profile/%s"
 	url := fmt.Sprintf(root+profile_path, membershipType, memberId)
 
+	// Because we have to add query information, we can't use the BungieClient.Get method.
+	req := client.NewRequest("GET", url)
+	q := req.URL.Query()
+	q.Add("components", "200,202")
+	req.URL.RawQuery = q.Encode()
+
+	fmt.Printf("Query string: %s", req.URL.String())
+
 	fmt.Printf("About to request\n")
-	resp, err := client.Get(url)
+	resp, err := client.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -86,10 +104,17 @@ func GetProfile(client *BungieClient, membershipType int, memberId string) {
 	fmt.Printf("About to decode\n")
 	var profResponse ProfileResponse
 	err = json.NewDecoder(resp.Body).Decode(&profResponse)
+	defer resp.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyString := string(bodyBytes)
 	if err != nil {
 		fmt.Printf("%v", err)
 	}
-	fmt.Printf("%+v", profResponse)
+	fmt.Printf("Raw body: %s\nEnd of Raw\n", bodyString)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	fmt.Printf("%+v\nEnd of Parsed\n", profResponse)
 }
 
 func main() {
