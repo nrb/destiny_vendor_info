@@ -2,7 +2,9 @@ package main
 
 import "encoding/json"
 import "fmt"
+import "flag"
 import "io/ioutil"
+import "log"
 import "net/http"
 import "os"
 import "time"
@@ -81,7 +83,7 @@ func GetMembershipId(client *BungieClient, membershipType int, username string) 
 	return member.MembershipId
 }
 
-func GetProfile(client *BungieClient, membershipType int, memberId string) {
+func GetProfile(client *BungieClient, membershipType int, memberId string, debug bool) {
 	// We need URL parameters this time. components='200,202'
 	profile_path := "%d/Profile/%s"
 	url := fmt.Sprintf(root+profile_path, membershipType, memberId)
@@ -92,35 +94,44 @@ func GetProfile(client *BungieClient, membershipType int, memberId string) {
 	q.Add("components", "200,202")
 	req.URL.RawQuery = q.Encode()
 
-	fmt.Printf("Query string: %s", req.URL.String())
+	if debug == true {
+		log.Printf("Query string: %s", req.URL.String())
 
-	fmt.Printf("About to request\n")
+		log.Printf("About to request\n")
+	}
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
 		fmt.Printf("%v", err)
 	}
 
-	fmt.Printf("About to decode\n")
+	if debug {
+		log.Printf("About to decode\n")
+	}
 	var profResponse ProfileResponse
 	err = json.NewDecoder(resp.Body).Decode(&profResponse)
 	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	bodyString := string(bodyBytes)
-	if err != nil {
-		fmt.Printf("%v", err)
+	if debug {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyString := string(bodyBytes)
+		if err != nil {
+
+			fmt.Printf("%v", err)
+		}
+		log.Printf("Raw body: %s\nEnd of Raw\n", bodyString)
+		if err != nil {
+			fmt.Printf("%v", err)
+		}
+		log.Printf("%+v\nEnd of Parsed\n", profResponse)
 	}
-	fmt.Printf("Raw body: %s\nEnd of Raw\n", bodyString)
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
-	fmt.Printf("%+v\nEnd of Parsed\n", profResponse)
 }
 
 func main() {
+	logPtr := flag.Bool("d", false, "flag indicating debug output")
+	flag.Parse()
 	api_key := os.Getenv("BUNGIE_API_KEY")
 	client := NewBungieClient(api_key)
 	mem_id := GetMembershipId(client, 2, "guubu")
 	fmt.Printf("%s\n", mem_id)
-	GetProfile(client, 2, mem_id)
+	GetProfile(client, 2, mem_id, *logPtr)
 }
