@@ -83,7 +83,7 @@ func GetMembershipId(client *BungieClient, membershipType int, username string) 
 	return member.MembershipId
 }
 
-func GetProfile(client *BungieClient, membershipType int, memberId string, debug bool) {
+func GetProfile(client *BungieClient, membershipType int, memberId string, debug bool) CharacterInfo {
 	// We need URL parameters this time. components='200,202'
 	profile_path := "%d/Profile/%s"
 	url := fmt.Sprintf(root+profile_path, membershipType, memberId)
@@ -124,6 +124,19 @@ func GetProfile(client *BungieClient, membershipType int, memberId string, debug
 		}
 		log.Printf("%+v\nEnd of Parsed\n", profResponse)
 	}
+	return profResponse.Response
+}
+
+// class_types = [
+// 	'Titan',
+// 	'Hunter',
+// 	'Warlock',
+// 	'Unknown',
+// ]
+func (ci *CharacterInfo) GetClass() {
+	for _, val := range ci.Characters.Data {
+		fmt.Println(val["classType"])
+	}
 }
 
 func main() {
@@ -133,5 +146,6 @@ func main() {
 	client := NewBungieClient(api_key)
 	mem_id := GetMembershipId(client, 2, "guubu")
 	fmt.Printf("%s\n", mem_id)
-	GetProfile(client, 2, mem_id, *logPtr)
+	prof := GetProfile(client, 2, mem_id, *logPtr)
+	prof.GetClass()
 }
